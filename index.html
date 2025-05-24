@@ -2,32 +2,140 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Ultimate Chart</title>
+  <title>Ultimate Chart Pro Overlay</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; margin: 0; background: #121212; color: #fff;}
-    .container { max-width: 800px; margin: 40px auto; padding: 24px; background: #23272F; border-radius: 12px; box-shadow: 0 0 12px #0006;}
+    body { font-family: sans-serif; margin: 0; background: #181c25; color: #fff;}
+    .container { max-width: 900px; margin: 30px auto; padding: 32px; background: #222939; border-radius: 14px; box-shadow: 0 0 14px #000a;}
     h1 { color: #f9d923; }
-    .note { color: #9cf; margin: 12px 0 24px; }
-    iframe { border-radius: 10px; border: none; width: 100%; min-height: 500px;}
+    .note { color: #9cf; margin: 12px 0 18px; }
+    .input-row { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+    .input-row input { width: 80px; padding: 4px 8px; border-radius: 6px; border: 1px solid #888; }
+    .input-row label { font-size: 1rem; min-width: 52px; }
+    .toggle-row { display: flex; gap: 18px; margin: 12px 0; }
+    .toggle-row label { cursor: pointer; }
+    .plot-btn { padding: 6px 16px; border: none; border-radius: 8px; background: #f9d923; color: #222; font-weight: bold; cursor: pointer; margin-left: 10px;}
+    .plot-btn:hover { background: #ffd100; }
+    #chart { margin-top: 22px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Ultimate Chart (ตัวอย่างบน TradingView)</h1>
+    <h1>Ultimate Chart Pro (Plot Overlay)</h1>
     <div class="note">
-      นี่คือตัวอย่างเว็บแสดงกราฟราคาทอง/หุ้น/Forex บน TradingView<br>
-      <b>สำหรับเวอร์ชั่นแรก ใช้ Widget ฟรีของ TradingView</b><br>
-      (ถ้าอยากวาดเส้น overlay เพิ่ม จะอัปเกรดในขั้นถัดไป)
+      กรอกแผนเทรดแต่ละไม้ด้านล่าง แล้วกด <b>Plot Plan</b> จะเห็นเส้น Entry / SL / TP บนกราฟทันที<br>
+      <b>คลิกติ๊ก/ปิดตา</b> เพื่อซ่อนแต่ละไม้ได้<br>
+      (สามารถแก้ไขค่าแล้ว Plot ซ้ำได้ตลอด)
     </div>
-    <!-- กราฟทอง 15 นาที (XAUUSD) -->
-    <iframe src="https://s.tradingview.com/widgetembed/?symbol=OANDA%3AXAUUSD&interval=15&hidesidetoolbar=1&hidetoptoolbar=1&theme=dark&style=1&locale=th&studies=[]&toolbarbg=f1f3f6" allowfullscreen></iframe>
-    <div class="note">
-      <ul>
-        <li>คลิกขวาในกราฟเพื่อวาดเส้น เทรนด์ไลน์ ฟีโบ ฯลฯ ได้ตามต้องการ</li>
-        <li>Version ต่อไป: จะเพิ่มฟีเจอร์ Plot แผน เทรด ลงกราฟเอง (overlay เส้น Entry/SL/TP อัตโนมัติ)</li>
-      </ul>
-    </div>
+
+    <form id="planForm" autocomplete="off">
+      <div id="inputs"></div>
+      <button type="button" class="plot-btn" onclick="plotPlan()">Plot Plan</button>
+    </form>
+    <div class="toggle-row" id="toggleRow"></div>
+
+    <div id="chart"></div>
   </div>
+
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script>
+    // --- ตั้งค่าไม้แผนเทรด ---
+    const NUM_PLANS = 3;
+    const planDefaults = [
+      {entry: 2362.0, sl: 2356.5, tp: 2372.5, visible: true},
+      {entry: 2360.0, sl: 2355.0, tp: 2370.0, visible: true},
+      {entry: 2358.5, sl: 2353.2, tp: 2368.5, visible: true},
+    ];
+
+    // --- สร้างช่องกรอกแผน ---
+    const inputsDiv = document.getElementById('inputs');
+    for (let i = 0; i < NUM_PLANS; i++) {
+      const row = document.createElement('div');
+      row.className = 'input-row';
+      row.innerHTML = `
+        <label>ไม้ ${i+1}</label>
+        <input type="number" step="0.1" id="entry${i}" placeholder="Entry" value="${planDefaults[i].entry}">
+        <input type="number" step="0.1" id="sl${i}" placeholder="SL" value="${planDefaults[i].sl}">
+        <input type="number" step="0.1" id="tp${i}" placeholder="TP" value="${planDefaults[i].tp}">
+      `;
+      inputsDiv.appendChild(row);
+    }
+
+    // --- สร้างกราฟ TradingView (Lightweight Chart) ---
+    let chart, mainSeries, entryLines = [], slLines = [], tpLines = [];
+
+    function drawChart() {
+      // ลบกราฟเดิม (ถ้ามี)
+      document.getElementById('chart').innerHTML = "";
+      chart = LightweightCharts.createChart(document.getElementById('chart'), {
+        width: 800, height: 400,
+        layout: { background: {color: '#1b2330'}, textColor: '#eee' },
+        grid: { vertLines: { color: '#444'}, horzLines: { color: '#444'} },
+        timeScale: { borderColor: '#71649C' }
+      });
+      mainSeries = chart.addLineSeries({ color: '#32d9ad', lineWidth: 2 });
+      // เพิ่มตัวอย่างราคาสมมุติ
+      const base = 2355;
+      const data = [];
+      for (let i = 0; i < 100; i++) {
+        data.push({ time: (1700000000 + i * 60 * 15), value: base + Math.sin(i/12)*8 + Math.random()*3 });
+      }
+      mainSeries.setData(data);
+    }
+
+    function plotPlan() {
+      // อ่านค่าจากฟอร์ม
+      let plans = [];
+      for (let i = 0; i < NUM_PLANS; i++) {
+        plans.push({
+          entry: parseFloat(document.getElementById('entry'+i).value),
+          sl: parseFloat(document.getElementById('sl'+i).value),
+          tp: parseFloat(document.getElementById('tp'+i).value),
+          visible: document.getElementById('toggle'+i)?.checked ?? true
+        });
+      }
+      drawChart();
+
+      // ลบเส้นเก่า
+      entryLines = [];
+      slLines = [];
+      tpLines = [];
+
+      // วาดเส้นแต่ละไม้
+      const toggleRow = document.getElementById('toggleRow');
+      toggleRow.innerHTML = '';
+      for (let i = 0; i < plans.length; i++) {
+        // Checkbox เปิด/ปิดตา
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" id="toggle${i}" ${plans[i].visible ? 'checked' : ''} onchange="plotPlan()"> <b>ไม้ ${i+1}</b>`;
+        toggleRow.appendChild(label);
+
+        if (plans[i].visible) {
+          // เส้น Entry (เขียว)
+          const entryLine = chart.addHorizontalLine({
+            price: plans[i].entry, color: '#3cff63', lineWidth: 2, lineStyle: 2,
+            title: `Entry ${i+1}`, axisLabelVisible: true, titleLabelVisible: true
+          });
+          entryLines.push(entryLine);
+          // เส้น SL (แดง)
+          const slLine = chart.addHorizontalLine({
+            price: plans[i].sl, color: '#ff5353', lineWidth: 2, lineStyle: 0,
+            title: `SL ${i+1}`, axisLabelVisible: true, titleLabelVisible: true
+          });
+          slLines.push(slLine);
+          // เส้น TP (น้ำเงิน)
+          const tpLine = chart.addHorizontalLine({
+            price: plans[i].tp, color: '#0099ff', lineWidth: 2, lineStyle: 1,
+            title: `TP ${i+1}`, axisLabelVisible: true, titleLabelVisible: true
+          });
+          tpLines.push(tpLine);
+        }
+      }
+    }
+
+    // --- สั่งวาดครั้งแรก ---
+    drawChart();
+    plotPlan();
+  </script>
 </body>
 </html>
