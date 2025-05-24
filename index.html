@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Ultimate Chart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #121212; color: #fff;}
+    .container { max-width: 800px; margin: 40px auto; padding: 24px; background: #23272F; border-radius: 12px; box-shadow: 0 0 12px #0006;}
+    h1 { color: #f9d923; }
+    .note { color: #9cf; margin: 12px 0 24px; }
+    iframe { border-radius: 10px; border: none; width: 100%; min-height: 500px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Ultimate Chart (ตัวอย่างบน TradingView)</h1>
+    <div class="note">
+      นี่คือตัวอย่างเว็บแสดงกราฟราคาทอง/หุ้น/Forex บน TradingView<br>
+      <b>สำหรับเวอร์ชั่นแรก ใช้ Widget ฟรีของ TradingView</b><br>
+      (ถ้าอยากวาดเส้น overlay เพิ่ม จะอัปเกรดในขั้นถัดไป)
+    </div>
+    <!-- กราฟทอง 15 นาที (XAUUSD) -->
+    <iframe src="https://s.tradingview.com/widgetembed/?symbol=OANDA%3AXAUUSD&interval=15&hidesidetoolbar=1&hidetoptoolbar=1&theme=dark&style=1&locale=th&studies=[]&toolbarbg=f1f3f6" allowfullscreen></iframe>
+    <div class="note">
+      <ul>
+        <li>คลิกขวาในกราฟเพื่อวาดเส้น เทรนด์ไลน์ ฟีโบ ฯลฯ ได้ตามต้องการ</li>
+        <li>Version ต่อไป: จะเพิ่มฟีเจอร์ Plot แผน เทรด ลงกราฟเอง (overlay เส้น Entry/SL/TP อัตโนมัติ)</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
